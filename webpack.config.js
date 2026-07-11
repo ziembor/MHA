@@ -229,7 +229,7 @@ export default async (env, options) => {
                     exclude: /node_modules/,
                 },
                 { test: /\.css$/i, use: [MiniCssExtractPlugin.loader, "css-loader"] },
-                { test: /\.js$/, enforce: "pre", use: ["source-map-loader"] },
+                { test: /\.js$/, enforce: "pre", exclude: /node_modules/, use: ["source-map-loader"] },
                 {
                     test: /\.(gif|jpg|jpeg|png|svg)$/i,
                     type: "asset/resource",
@@ -439,13 +439,6 @@ export default async (env, options) => {
                 config: [__filename],
             },
         };
-
-        // Faster source map generation in development
-        config.module.rules.forEach(rule => {
-            if (rule.enforce === "pre" && rule.use && rule.use.includes("source-map-loader")) {
-                rule.exclude = /node_modules/;
-            }
-        });
     }
 
     console.log("🎯 Webpack config completed successfully");
