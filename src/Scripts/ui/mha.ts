@@ -1,7 +1,4 @@
-import {
-    fluentButton,
-    provideFluentDesignSystem
-} from "@fluentui/web-components";
+import "@fluentui/web-components/button/define.js";
 import "../../Content/fluentCommon.css";
 import "../../Content/Office.css";
 import "../../Content/classicDesktopFrame.css";
@@ -13,10 +10,6 @@ import { Strings } from "../Strings";
 import { DomUtils } from "./domUtils";
 import { Table } from "./Table";
 
-// Register Fluent UI Web Components
-provideFluentDesignSystem().register(
-    fluentButton()
-);
 
 let viewModel: HeaderModel;
 let table: Table;
