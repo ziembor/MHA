@@ -1,4 +1,8 @@
-# Running MHA on Modern Node
+# Deploying MHA as a Static Web App (mha.html only)
+
+This guide covers building and deploying **only the standalone web version** of the Message Header
+Analyzer (`mha.html`) as a static site. This build has **no Outlook add-in dependency** and **no
+telemetry** — it's a self-contained page you can host on any static web server.
 
 Tested on **Node 26** (also works on Node 18–24).
 
@@ -12,51 +16,76 @@ Tested on **Node 26** (also works on Node 18–24).
 
 ```sh
 npm install
-npm run build
+npm run build:web
 ```
 
-`npm run build` runs a production webpack compile and outputs to `Pages/`.
+`npm run build:web` runs a production webpack compile that builds **only the `mha` page** (via
+`webpack --env web`) and aliases the Application Insights SDK to a no-op stub, so no telemetry code
+is bundled or sent. It auto-cleans stale output first (`prebuild:web` → `npm run clean`).
 
 ---
 
-## Development server
+## What gets built
+
+The build writes two folders at the repo root:
+
+| Path | Contents |
+|---|---|
+| `Pages/mha.html` | The page (script/CSS tags injected automatically) |
+| `Pages/<hash>/` | Hashed JS chunks + `mha.css` |
+| `Pages/data/rules.json` | Header-validation rules loaded at runtime |
+| `Resources/` | Images, including `loader.gif` (spinner) |
+
+No other HTML pages are produced — just `mha.html`.
+
+---
+
+## Deploy to a static host
+
+Upload the repo-root **`Pages/`** and **`Resources/`** folders to your web server's **root**. The
+page is then served at:
+
+```
+https://<your-domain>/Pages/mha.html
+```
+
+> **Must be served from the site root.** The app requests `/Pages/data/rules.json` and
+> `/Resources/...` by **absolute** path, so hosting under a subpath (e.g. `example.com/app/Pages/...`)
+> will 404 those assets and header-validation rules will silently fail to load. If you need to host
+> under a subpath, change `output.publicPath` in `webpack.config.js` to `"auto"` and make the
+> `rules.json` fetch in `src/Scripts/rules/loaders/GetRules.ts` relative.
+
+Works with any static host — GitHub Pages, Netlify, S3/CloudFront, nginx, IIS, etc. There is no
+server-side component.
+
+---
+
+## Local preview
+
+Serve the repo root with any static file server and open the page:
 
 ```sh
-npm run dev-server
+npx http-server . -p 8080 -c-1
+# then open http://localhost:8080/Pages/mha.html
 ```
 
-Before starting webpack, `npm run dev-server` automatically runs `npm run setup-certs` (via a
-`predev-server` hook). That script:
+> Serve from the **repo root** (not from `Pages/`) so the absolute `/Pages/...` and `/Resources/...`
+> paths resolve. Alternative: `python -m http.server 8080` (same URL).
 
-1. Checks whether the HTTPS dev certificates are already trusted.
-2. If not, generates new certificate files under `~/.office-addin-dev-certs/` and installs the CA
-   into the **CurrentUser\\Root** store using `certutil.exe` (Windows) or the
-   `office-addin-dev-certs` installer (macOS/Linux).
-3. Exits immediately on subsequent runs when certificates are already valid.
-
-The server listens on **https://localhost:44336** with hot reload enabled.
-
-### Why a custom cert script?
-
-The built-in `office-addin-dev-certs` installer on Windows spawns a PowerShell script that shows a
-GUI security dialog. When invoked from a non-interactive shell (CI, VS Code terminal, sub-process),
-the dialog never surfaces and the process hangs indefinitely. The `tasks/setup-certs.js` script
-replaces that step with `certutil -addstore -user Root`, which installs silently with no prompt.
+Paste raw message headers into the textarea and click **Analyze headers** to confirm it works.
 
 ---
 
-## Other useful scripts
+## Useful scripts
 
 | Script | What it does |
 |---|---|
-| `npm run build` | Production webpack build → `Pages/` |
-| `npm run build:dev` | Development webpack build (no minification) |
-| `npm run watch` | Webpack watch mode |
-| `npm run setup-certs` | Install HTTPS certs only (runs automatically before dev-server) |
-| `npm test` | Jest tests (runs lint first) |
+| `npm run build:web` | **Web-only** production build (just `mha.html`, no telemetry) → `Pages/` |
+| `npm run clean` | Delete `Pages/` and `Resources/` build output |
+| `npm run build` | Full multi-page build (includes the Outlook add-in pages) → `Pages/` |
 | `npm run lint` | ESLint on all `.ts`/`.js` sources |
 | `npm run lint:fix` | ESLint with auto-fix |
-| `npm run clean` | Delete `Pages/` and `Resources/` build output |
+| `npx jest --silent` | Run the Jest test suite directly |
 
 ---
 
@@ -64,22 +93,12 @@ replaces that step with `certutil -addstore -user Root`, which installs silently
 
 ### `EBADENGINE` warnings during `npm install`
 
-Safe to ignore. See note at top of this file.
+Safe to ignore. See the note at the top of this file.
 
-### Port 44336 already in use
+### Header-validation rules don't load / 404 on `/Pages/data/rules.json`
 
-Kill the existing process and re-run:
-
-```powershell
-# PowerShell
-$pid = (netstat -ano | Select-String ":44336").ToString().Trim().Split()[-1]
-Stop-Process -Id $pid -Force
-```
-
-### Certificates expired or untrusted after a clean install
-
-Run `npm run setup-certs` manually. It detects stale or missing certs, regenerates them, and
-re-installs the CA. Dev certificates expire after 30 days by default.
+The site is being served from a subpath instead of the domain root. Serve from the root (see
+**Deploy to a static host** above), or switch to relative paths as described there.
 
 ### `Cannot find module 'resolve-cwd'` or similar missing-file errors
 

@@ -12,6 +12,7 @@
     "clean": "node tasks/clean.js",
     "watch": "webpack --watch --mode=development",
     "build": "webpack --mode=production --env=prod",
+    "build:web": "webpack --mode=production --env web",
     "build:dev": "webpack --mode=development",
     "build:analyze": "webpack --mode=production --env analyze",
     "setup-certs": "node tasks/setup-certs.js",
@@ -28,7 +29,8 @@
     "lint": "eslint \"*.{js,ts}\" \"src/**/*\" \"tasks/**/*\"",
     "lint:fix": "eslint --fix \"*.{js,ts}\" \"src/**/*\" \"tasks/**/*\"",
     "pretest": "npm run lint",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "prebuild:web": "npm run clean"
   },
   "keywords": [],
   "repository": {
@@ -89,7 +91,6 @@
   "dependencies": {
     "@fluentui/web-components": "^3.0.1",
     "@microsoft/applicationinsights-web": "^3.4.3",
-    "@microsoft/office-js": "^1.1.110",
     "codepage": "^1.15.0",
     "dayjs": "^1.11.21",
     "framework7": "^9.1.1",

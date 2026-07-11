@@ -119,7 +119,7 @@ const pages = [
  *
  * @returns {Object} An object representing the entry points for webpack.
  */
-function generateEntry() {
+function generateEntry(pages) {
     return pages.reduce((config, page) => {
         if (page.script) {
             config[page.script] = `./src/Scripts/ui/${page.script}.ts`;
@@ -142,7 +142,7 @@ function generateEntry() {
  *
  * @returns {HtmlWebpackPlugin[]} An array of HtmlWebpackPlugin instances.
  */
-function generateHtmlWebpackPlugins() {
+function generateHtmlWebpackPlugins(pages) {
     return pages.map((page) => new HtmlWebpackPlugin({
         inject: true,
         template: `./src/Pages/${page.name}.html`,
@@ -160,9 +160,15 @@ export default async (env, options) => {
     console.log("🏭 isProduction:", isProduction);
     console.log("Starting webpack.config.js - isProduction:", isProduction);
 
+    // Web-only build (`--env web`): produce just the standalone mha page for static hosting.
+    // Filtering the pages list prunes both the entry points and the HtmlWebpackPlugin instances.
+    const isWebOnly = !!env?.web;
+    const activePages = isWebOnly ? [{ name: "mha", script: "mha" }] : pages;
+    console.log("🌐 isWebOnly:", isWebOnly);
+
     console.log("📦 Generating entry points...");
     const config = {
-        entry: generateEntry(),
+        entry: generateEntry(activePages),
         plugins: [
             new MiniCssExtractPlugin({ filename: `${version}/[name].css` }),
             new webpack.DefinePlugin({
@@ -197,7 +203,7 @@ export default async (env, options) => {
                     { from: "src/data/rules.json", to: path.resolve(__dirname, "Pages/data/[name][ext]") }
                 ]
             }),
-            ...generateHtmlWebpackPlugins(),
+            ...generateHtmlWebpackPlugins(activePages),
             // Bundle analyzer (when env.analyze is set)
             ...(env?.analyze ? [new BundleAnalyzerPlugin({
                 analyzerMode: "static",
@@ -394,6 +400,13 @@ export default async (env, options) => {
     };
 
     console.log("⚙️ Main config object created successfully");
+
+    // Web-only build: fully remove telemetry by aliasing the Application Insights SDK to a no-op stub.
+    // Diag.ts is the sole telemetry chokepoint; with the stub, no AI code is bundled and no beacon is sent.
+    if (isWebOnly) {
+        config.resolve.alias["@microsoft/applicationinsights-web"] = path.resolve(__dirname, "tasks/stubs/appInsightsStub.js");
+        console.log("🌐 Web-only build: telemetry stubbed, building mha page only");
+    }
 
     // Production-specific optimizations
     if (isProduction) {
